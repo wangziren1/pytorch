@@ -69,7 +69,6 @@ void to_ir::checkBreakContinue(
   }
 }
 
-
 /* ============================================================ */
 /*                IR Generation Utility Methods                */
 /*      (These utility methods create and/or add extra Nodes    */
@@ -122,7 +121,6 @@ std::vector<NamedValue> to_ir::emitAttributes(
   });
 }
 
-
 /* ========================================= */
 /*              `Value` Getters              */
 /* ========================================= */
@@ -162,7 +160,6 @@ std::vector<Value*> to_ir::getValues(
   return getValues(trees.tree()->trees(), maybe_unpack);
 }
 
-
 /* =================================================== */
 /*            Environment Stack Manipulation           */
 /* =================================================== */
@@ -182,7 +179,6 @@ std::shared_ptr<Environment> to_ir::popFrame(bool ends_def) {
   }
   return old_frame;
 }
-
 
 /* ====================================== */
 /*               IR Emission              */
@@ -416,7 +412,7 @@ void to_ir::emitReturn(const Return& stmt) {
     // cause a None to be converted to a tensor.
     if (!(result_type->isSubtypeOf(TensorType::get()) &&
           result->type()->isSubtypeOf(NoneType::get()))) {
-      result = tryConvertToType(
+      result = tryConvertToTypeAndPrepareGraph(
           stmt.range(),
           *graph,
           result_type,
@@ -1885,7 +1881,7 @@ std::shared_ptr<SugaredValue> to_ir::emitApplySpecialForm(
     case prim::annotate: {
       checkApplyNumInputs(apply, 2);
       TypePtr type = typeParser_.parseTypeFromExpr(apply.inputs()[0]);
-      Value* expr = tryConvertToType(
+      Value* expr = tryConvertToTypeAndPrepareGraph(
           apply.range(),
           *graph,
           type,
@@ -2495,7 +2491,7 @@ std::shared_ptr<SugaredValue> to_ir::emitRpcExpr(
     // rpc_op(to, user_callable, arg_0, arg_1, kwarg_0="foo",
     // kwarg_1="bar")
   }
-  matchSchema(functionSchema, loc, *graphPtr, args, kwargs);
+  matchSchemaAndPrepareGraph(functionSchema, loc, *graphPtr, args, kwargs);
 
   // Graph insert the QualifiedName as an constant input IR Value.
   const auto& qualname = callablePtr->qualname();
@@ -3287,7 +3283,6 @@ std::shared_ptr<SugaredValue> to_ir::emitSubscript(
     }
   }
 }
-
 
 } // namespace jit
 } // namespace torch
