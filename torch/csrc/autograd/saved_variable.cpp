@@ -41,6 +41,21 @@ SavedVariable::SavedVariable(const Variable& variable, bool is_output, bool is_i
     version_counter_ = impl::version_counter(variable);
     saved_version_ = version_counter_.current_version();
 
+    // This check actually does not hold
+    // TORCH_CHECK(is_output && variable.is_leaf(), "Variable is both an output and a leaf");
+
+    // If the variable is not an output, we can safely save the
+    // original variable without running the risk of reference cycles.
+    // If the variable is not an output, its grad_fn has already been fully
+    // created and in particular will be a different Node than the one
+    // we are currently constructing (the one that owns this SavedVariable).
+    // Similarly, if the variable is a leaf.
+    if (!is_output || variable.is_leaf()) {
+      saved_original = true;
+      data_ = variable;
+      return;
+    }
+
     output_nr_ = variable.output_nr();
     requires_grad_ = variable.requires_grad();
     has_grad_fn_ = !variable.is_leaf();
@@ -79,7 +94,9 @@ Variable SavedVariable::unpack(std::shared_ptr<Node> saved_for) const {
 
   // We want grad_fn here to provide the most hlepful debug message to the user
   // if versions don't match
-  auto grad_fn = is_inplace_view_ ? weak_grad_fn_.lock() : grad_fn_;
+  auto grad_fn = saved_original ? data_.grad_fn()
+                                : is_inplace_view_ ? weak_grad_fn_.lock()
+                                                   : grad_fn_;
   if (has_grad_fn_ && !grad_fn) {
     TORCH_CHECK(saved_for,"No grad_fn for non-leaf saved variable");
     grad_fn = std::move(saved_for);
@@ -107,6 +124,10 @@ Variable SavedVariable::unpack(std::shared_ptr<Node> saved_for) const {
             "was changed in there or anywhere later. Good luck!";
     }
     TORCH_CHECK(false, message.str());
+  }
+
+  if (saved_original) {
+    return data_;
   }
 
   // NB: saved views are unpacked as normal Variables (not views) even though
