@@ -57,6 +57,7 @@ Creation Ops
     as_tensor
     as_strided
     from_numpy
+    from_buffer
     zeros
     zeros_like
     ones
